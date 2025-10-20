@@ -1,4 +1,4 @@
-# Quick Reference - Jetpack Compose Code Snippets
+# Quick Reference - Countdown Timer Code Snippets
 
 ## 🚀 Basic Activity Setup
 
@@ -10,7 +10,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             QuickUIPracticeTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    TodoListScreen(modifier = Modifier.padding(innerPadding))
+                    CountdownTimerScreen(modifier = Modifier.padding(innerPadding))
                 }
             }
         }
@@ -19,250 +19,320 @@ class MainActivity : ComponentActivity() {
 ```
 **What it does**: Sets up edge-to-edge display with Material 3 theme and Scaffold layout.
 
-## 📱 State Management
+## ⏱️ Timer State Management
 
 ```kotlin
-// Mutable state for text input
-var todoText by remember { mutableStateOf("") }
+// Input state for minutes and seconds
+var minutes by remember { mutableStateOf("") }
+var seconds by remember { mutableStateOf("") }
 
-// Mutable state list for data
-val todoList = remember {
-    mutableStateListOf(
-        TodoItem(1, "Learn Jetpack Compose", false),
-        TodoItem(2, "Build a todo app", false)
-    )
-}
+// Timer state variables
+var totalSeconds by remember { mutableIntStateOf(0) }
+var remainingSeconds by remember { mutableIntStateOf(0) }
+var isRunning by remember { mutableStateOf(false) }
 
-// Counter state
-var nextId by remember { mutableStateOf(4) }
-
-// Coroutine scope for animations
+// Coroutine scope for timer logic
 val scope = rememberCoroutineScope()
 ```
-**What it does**: Manages UI state that triggers recomposition when changed.
+**What it does**: Manages all timer-related state including input validation and running status.
 
-## 🎨 Data Class
-
-```kotlin
-data class TodoItem(
-    val id: Int,
-    val title: String,
-    var isCompleted: Boolean = false
-)
-```
-**What it does**: Immutable data class with default parameter for completion status.
-
-## 📝 Text Input with FAB
+## ⏰ Timer Logic with LaunchedEffect
 
 ```kotlin
-Row(
-    modifier = Modifier
-        .fillMaxWidth()
-        .padding(bottom = 16.dp),
-    verticalAlignment = Alignment.CenterVertically
-) {
-    OutlinedTextField(
-        value = todoText,
-        onValueChange = { todoText = it },
-        label = { Text("New task") },
-        modifier = Modifier.weight(1f),
-        singleLine = true
-    )
-    Spacer(modifier = Modifier.width(8.dp))
-    FloatingActionButton(
-        onClick = {
-            if (todoText.isNotBlank()) {
-                todoList.add(TodoItem(nextId++, todoText.trim()))
-                todoText = ""
+// Timer countdown logic
+LaunchedEffect(isRunning) {
+    if (isRunning && remainingSeconds > 0) {
+        while (isRunning && remainingSeconds > 0) {
+            delay(1000)
+            remainingSeconds--
+            if (remainingSeconds == 0) {
+                isRunning = false
             }
-        },
-        modifier = Modifier.size(56.dp)
-    ) {
-        Icon(Icons.Default.Add, contentDescription = "Add task")
-    }
-}
-```
-**What it does**: Input field with floating action button that adds items to list and clears input.
-
-## 📋 LazyColumn with Items
-
-```kotlin
-LazyColumn(
-    modifier = Modifier.fillMaxSize(),
-    verticalArrangement = Arrangement.spacedBy(8.dp)
-) {
-    items(todoList, key = { it.id }) { todo ->
-        TodoItemRow(
-            todo = todo,
-            onCheckedChange = { isChecked ->
-                if (isChecked) {
-                    val index = todoList.indexOf(todo)
-                    if (index != -1) {
-                        todoList[index] = todo.copy(isCompleted = true)
-                        scope.launch {
-                            delay(300)
-                            todoList.removeAt(index)
-                        }
-                    }
-                }
-            },
-            modifier = Modifier.animateItem()
-        )
-    }
-}
-```
-**What it does**: Efficiently renders list items with key-based animations and delayed removal.
-
-## 🎯 Individual List Item
-
-```kotlin
-@Composable
-fun TodoItemRow(
-    todo: TodoItem,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = todo.isCompleted,
-                onCheckedChange = onCheckedChange
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = todo.title,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f)
-            )
         }
     }
 }
 ```
-**What it does**: Card-based list item with checkbox and text, using Material 3 elevation.
+**What it does**: Handles the countdown logic using coroutines, decrements every second and stops when timer reaches zero.
 
-## ✨ Animation Extension
-
-```kotlin
-fun Modifier.animateItem() = this.animateContentSize(
-    animationSpec = tween(
-        durationMillis = 300,
-        easing = FastOutSlowInEasing
-    )
-)
-```
-**What it does**: Smooth content size animation for list item removal with easing curve.
-
-## 🎨 Material 3 Theme Setup
+## 🎯 Circular Progress Timer Display
 
 ```kotlin
-@Composable
-fun QuickUIPracticeTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
+Box(
+    contentAlignment = Alignment.Center,
+    modifier = Modifier.size(280.dp)
 ) {
-    val colorScheme = when {
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-    
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+    // Circular progress indicator
+    CircularProgressIndicator(
+        progress = {
+            if (totalSeconds > 0) remainingSeconds.toFloat() / totalSeconds.toFloat()
+            else 0f
+        },
+        modifier = Modifier.fillMaxSize(),
+        strokeWidth = 12.dp,
+        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+        strokeCap = StrokeCap.Round,
     )
+
+    // Time display
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = formatTime(remainingSeconds),
+            fontSize = 56.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = if (remainingSeconds > 0) "remaining" else if (totalSeconds > 0) "Time's up!" else "",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 ```
-**What it does**: Applies Material 3 theming with automatic dark/light mode detection.
+**What it does**: Creates a circular progress indicator with time display in the center, showing remaining time and status.
 
-## 🔧 Key Imports
+## 📝 Input Validation for Time
+
+```kotlin
+// Minutes input with digit validation
+OutlinedTextField(
+    value = minutes,
+    onValueChange = { if (it.isEmpty() || it.all { char -> char.isDigit() }) minutes = it },
+    label = { Text("Minutes") },
+    modifier = Modifier.weight(1f),
+    singleLine = true
+)
+
+// Seconds input with 0-59 validation
+OutlinedTextField(
+    value = seconds,
+    onValueChange = {
+        if (it.isEmpty() || (it.all { char -> char.isDigit() } && it.toIntOrNull()?.let { num -> num < 60 } == true)) {
+            seconds = it
+        }
+    },
+    label = { Text("Seconds") },
+    modifier = Modifier.weight(1f),
+    singleLine = true
+)
+```
+**What it does**: Validates input to only allow digits, with seconds limited to 0-59 range.
+
+## ⚡ Quick Preset Buttons
+
+```kotlin
+Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.spacedBy(8.dp)
+) {
+    FilledTonalButton(
+        onClick = {
+            minutes = "1"
+            seconds = "0"
+        },
+        modifier = Modifier.weight(1f)
+    ) {
+        Text("1 min")
+    }
+    FilledTonalButton(
+        onClick = {
+            minutes = "5"
+            seconds = "0"
+        },
+        modifier = Modifier.weight(1f)
+    ) {
+        Text("5 min")
+    }
+    FilledTonalButton(
+        onClick = {
+            minutes = "15"
+            seconds = "0"
+        },
+        modifier = Modifier.weight(1f)
+    ) {
+        Text("15 min")
+    }
+}
+```
+**What it does**: Quick preset buttons that populate minutes/seconds fields with common timer durations.
+
+## 🎮 Dynamic Control Buttons
+
+```kotlin
+Row(
+    horizontalArrangement = Arrangement.spacedBy(16.dp)
+) {
+    if (remainingSeconds == 0 && !isRunning) {
+        // Start button
+        Button(
+            onClick = {
+                val mins = minutes.toIntOrNull() ?: 0
+                val secs = seconds.toIntOrNull() ?: 0
+                totalSeconds = (mins * 60) + secs
+                if (totalSeconds > 0) {
+                    remainingSeconds = totalSeconds
+                    isRunning = true
+                }
+            },
+            modifier = Modifier
+                .height(56.dp)
+                .widthIn(min = 120.dp)
+        ) {
+            Text("START", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        }
+    } else {
+        // Pause/Resume button
+        Button(
+            onClick = { isRunning = !isRunning },
+            modifier = Modifier
+                .height(56.dp)
+                .widthIn(min = 120.dp)
+        ) {
+            Text(
+                if (isRunning) "PAUSE" else "RESUME",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Reset button
+        OutlinedButton(
+            onClick = {
+                isRunning = false
+                remainingSeconds = 0
+                totalSeconds = 0
+                minutes = ""
+                seconds = ""
+            },
+            modifier = Modifier
+                .height(56.dp)
+                .widthIn(min = 120.dp)
+        ) {
+            Text("RESET", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+```
+**What it does**: Shows different button combinations based on timer state - Start when stopped, Pause/Resume + Reset when running.
+
+## 🕐 Time Formatting Function
+
+```kotlin
+fun formatTime(totalSeconds: Int): String {
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
+}
+```
+**What it does**: Converts seconds to MM:SS format with zero-padding for consistent display.
+
+## 🎨 Conditional UI Rendering
+
+```kotlin
+// Show input fields only when timer is not running and at zero
+if (!isRunning && remainingSeconds == 0) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Input fields here
+    }
+}
+```
+**What it does**: Conditionally shows input fields only when timer is stopped and at zero.
+
+## 🔧 Key Imports for Timer
 
 ```kotlin
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 ```
-**What it does**: Essential imports for Compose UI, animations, and coroutines.
+**What it does**: Essential imports for timer functionality including coroutines, Material 3, and custom styling.
 
-## 🎯 Common Patterns
+## 🎯 Common Timer Patterns
 
-### State Hoisting
+### State Management
 ```kotlin
-// Pass state down as parameters
+// Multiple related state variables
+var isRunning by remember { mutableStateOf(false) }
+var remainingTime by remember { mutableIntStateOf(0) }
+var totalTime by remember { mutableIntStateOf(0) }
+```
+
+### Input Validation
+```kotlin
+// Numeric input validation
+onValueChange = { 
+    if (it.isEmpty() || it.all { char -> char.isDigit() }) {
+        // Update value
+    }
+}
+```
+
+### Time Calculations
+```kotlin
+// Convert minutes and seconds to total seconds
+val totalSeconds = (minutes * 60) + seconds
+
+// Convert back to minutes and seconds
+val mins = totalSeconds / 60
+val secs = totalSeconds % 60
+```
+
+### Coroutine Timer
+```kotlin
+LaunchedEffect(isRunning) {
+    while (isRunning && remainingTime > 0) {
+        delay(1000)
+        remainingTime--
+    }
+}
+```
+
+## 🚀 Complete Screen Layout
+
+```kotlin
 @Composable
-fun ParentComponent() {
-    var state by remember { mutableStateOf(initialValue) }
-    ChildComponent(
-        value = state,
-        onValueChange = { state = it }
-    )
-}
-```
-
-### Conditional Rendering
-```kotlin
-if (condition) {
-    Text("Show this")
-} else {
-    Text("Show that")
-}
-```
-
-### List Operations
-```kotlin
-// Add item
-list.add(newItem)
-
-// Remove item
-list.removeAt(index)
-
-// Update item
-list[index] = item.copy(property = newValue)
-
-// Find item
-val index = list.indexOf(item)
-```
-
-## 🚀 Quick Build Config
-
-```kotlin
-android {
-    namespace = "com.example.quickuipractice"
-    compileSdk = 36
+fun CountdownTimerScreen(modifier: Modifier = Modifier) {
+    // State variables here
     
-    defaultConfig {
-        applicationId = "com.example.quickuipractice"
-        minSdk = 24
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
-    }
-    
-    buildFeatures {
-        compose = true
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Title
+        Text(
+            text = "Countdown Timer",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 32.dp)
+        )
+        
+        // Circular progress display
+        // Input fields (conditional)
+        // Control buttons
     }
 }
 ```
+**What it does**: Complete screen structure with centered layout and proper spacing.
 
 ## 📱 Essential Dependencies
 
@@ -280,4 +350,4 @@ dependencies {
 
 ---
 
-**Quick Reference for Lyft Interview** - Copy-paste ready code snippets for Jetpack Compose development.
+**Quick Reference for Lyft Interview** - Copy-paste ready code snippets for Countdown Timer development.
