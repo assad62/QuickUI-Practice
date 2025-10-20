@@ -1,174 +1,283 @@
-# QuickUI Practice - Todo List with Delete Animation
+# Quick Reference - Jetpack Compose Code Snippets
 
-A modern Android todo list application built with Jetpack Compose, featuring smooth delete animations and Material 3 design.
+## 🚀 Basic Activity Setup
 
-## 📱 Features
-
-- **Add Tasks**: Create new todo items with a clean input interface
-- **Mark Complete**: Check off completed tasks with visual feedback
-- **Smooth Delete Animation**: Tasks automatically disappear with a 300ms delay after being marked complete
-- **Material 3 Design**: Modern UI following Material Design guidelines
-- **Lazy Loading**: Efficient rendering of todo items using LazyColumn
-- **Edge-to-Edge**: Full-screen experience with proper edge-to-edge support
-
-## 🛠️ Technical Stack
-
-- **Language**: Kotlin
-- **UI Framework**: Jetpack Compose
-- **Design System**: Material 3
-- **Architecture**: MVVM with Compose state management
-- **Animations**: Compose Animation APIs
-- **Minimum SDK**: API 24 (Android 7.0)
-- **Target SDK**: API 36 (Android 14)
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Android Studio Hedgehog (2023.1.1) or later
-- JDK 11 or later
-- Android SDK with API 24+ installed
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd QuickUIPractice
-   ```
-
-2. **Open in Android Studio**
-   - Launch Android Studio
-   - Select "Open an existing project"
-   - Navigate to the project directory and select it
-
-3. **Sync the project**
-   - Android Studio will automatically sync Gradle files
-   - Wait for the sync to complete
-
-4. **Run the app**
-   - Connect an Android device or start an emulator
-   - Click the "Run" button or press `Shift + F10`
-
-## 📁 Project Structure
-
+```kotlin
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            QuickUIPracticeTheme {
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    TodoListScreen(modifier = Modifier.padding(innerPadding))
+                }
+            }
+        }
+    }
+}
 ```
-app/
-├── src/main/
-│   ├── java/com/example/quickuipractice/
-│   │   ├── MainActivity.kt          # Main activity and UI components
-│   │   └── ui/theme/                # Material 3 theme configuration
-│   │       ├── Color.kt
-│   │       ├── Theme.kt
-│   │       └── Type.kt
-│   ├── res/                         # Resources (drawables, values, etc.)
-│   └── AndroidManifest.xml
-├── build.gradle.kts                 # App-level build configuration
-└── proguard-rules.pro
+**What it does**: Sets up edge-to-edge display with Material 3 theme and Scaffold layout.
+
+## 📱 State Management
+
+```kotlin
+// Mutable state for text input
+var todoText by remember { mutableStateOf("") }
+
+// Mutable state list for data
+val todoList = remember {
+    mutableStateListOf(
+        TodoItem(1, "Learn Jetpack Compose", false),
+        TodoItem(2, "Build a todo app", false)
+    )
+}
+
+// Counter state
+var nextId by remember { mutableStateOf(4) }
+
+// Coroutine scope for animations
+val scope = rememberCoroutineScope()
+```
+**What it does**: Manages UI state that triggers recomposition when changed.
+
+## 🎨 Data Class
+
+```kotlin
+data class TodoItem(
+    val id: Int,
+    val title: String,
+    var isCompleted: Boolean = false
+)
+```
+**What it does**: Immutable data class with default parameter for completion status.
+
+## 📝 Text Input with FAB
+
+```kotlin
+Row(
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(bottom = 16.dp),
+    verticalAlignment = Alignment.CenterVertically
+) {
+    OutlinedTextField(
+        value = todoText,
+        onValueChange = { todoText = it },
+        label = { Text("New task") },
+        modifier = Modifier.weight(1f),
+        singleLine = true
+    )
+    Spacer(modifier = Modifier.width(8.dp))
+    FloatingActionButton(
+        onClick = {
+            if (todoText.isNotBlank()) {
+                todoList.add(TodoItem(nextId++, todoText.trim()))
+                todoText = ""
+            }
+        },
+        modifier = Modifier.size(56.dp)
+    ) {
+        Icon(Icons.Default.Add, contentDescription = "Add task")
+    }
+}
+```
+**What it does**: Input field with floating action button that adds items to list and clears input.
+
+## 📋 LazyColumn with Items
+
+```kotlin
+LazyColumn(
+    modifier = Modifier.fillMaxSize(),
+    verticalArrangement = Arrangement.spacedBy(8.dp)
+) {
+    items(todoList, key = { it.id }) { todo ->
+        TodoItemRow(
+            todo = todo,
+            onCheckedChange = { isChecked ->
+                if (isChecked) {
+                    val index = todoList.indexOf(todo)
+                    if (index != -1) {
+                        todoList[index] = todo.copy(isCompleted = true)
+                        scope.launch {
+                            delay(300)
+                            todoList.removeAt(index)
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.animateItem()
+        )
+    }
+}
+```
+**What it does**: Efficiently renders list items with key-based animations and delayed removal.
+
+## 🎯 Individual List Item
+
+```kotlin
+@Composable
+fun TodoItemRow(
+    todo: TodoItem,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = todo.isCompleted,
+                onCheckedChange = onCheckedChange
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = todo.title,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+```
+**What it does**: Card-based list item with checkbox and text, using Material 3 elevation.
+
+## ✨ Animation Extension
+
+```kotlin
+fun Modifier.animateItem() = this.animateContentSize(
+    animationSpec = tween(
+        durationMillis = 300,
+        easing = FastOutSlowInEasing
+    )
+)
+```
+**What it does**: Smooth content size animation for list item removal with easing curve.
+
+## 🎨 Material 3 Theme Setup
+
+```kotlin
+@Composable
+fun QuickUIPracticeTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    val colorScheme = when {
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
+    
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography,
+        content = content
+    )
+}
+```
+**What it does**: Applies Material 3 theming with automatic dark/light mode detection.
+
+## 🔧 Key Imports
+
+```kotlin
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+```
+**What it does**: Essential imports for Compose UI, animations, and coroutines.
+
+## 🎯 Common Patterns
+
+### State Hoisting
+```kotlin
+// Pass state down as parameters
+@Composable
+fun ParentComponent() {
+    var state by remember { mutableStateOf(initialValue) }
+    ChildComponent(
+        value = state,
+        onValueChange = { state = it }
+    )
+}
 ```
 
-## 🎨 Key Components
+### Conditional Rendering
+```kotlin
+if (condition) {
+    Text("Show this")
+} else {
+    Text("Show that")
+}
+```
 
-### MainActivity.kt
-- **TodoItem**: Data class representing a todo item with id, title, and completion status
-- **TodoListScreen**: Main composable containing the entire todo list interface
-- **TodoItemRow**: Individual todo item component with checkbox and text
+### List Operations
+```kotlin
+// Add item
+list.add(newItem)
 
-### Animation Implementation
-The app features a smooth delete animation where:
-1. User checks off a todo item
-2. The item is marked as completed
-3. After a 300ms delay, the item is removed from the list
-4. The removal is animated using Compose's built-in LazyColumn animations
+// Remove item
+list.removeAt(index)
 
-## 🔧 Configuration
+// Update item
+list[index] = item.copy(property = newValue)
 
-### Build Configuration
-- **Compile SDK**: 36
-- **Min SDK**: 24
-- **Target SDK**: 36
-- **Java Version**: 11
-- **Kotlin Version**: 2.0.21
+// Find item
+val index = list.indexOf(item)
+```
 
-### Dependencies
-- **Jetpack Compose BOM**: 2024.09.00
-- **Material 3**: Latest stable
-- **Activity Compose**: 1.8.0
-- **Lifecycle Runtime**: 2.6.1
+## 🚀 Quick Build Config
 
-## 🎯 Usage
+```kotlin
+android {
+    namespace = "com.example.quickuipractice"
+    compileSdk = 36
+    
+    defaultConfig {
+        applicationId = "com.example.quickuipractice"
+        minSdk = 24
+        targetSdk = 36
+        versionCode = 1
+        versionName = "1.0"
+    }
+    
+    buildFeatures {
+        compose = true
+    }
+}
+```
 
-1. **Adding Tasks**:
-   - Type your task in the text field
-   - Tap the "+" floating action button
-   - The task will appear in the list below
+## 📱 Essential Dependencies
 
-2. **Completing Tasks**:
-   - Tap the checkbox next to any task
-   - The task will be marked as completed
-   - After a brief delay, it will smoothly disappear from the list
-
-3. **Default Tasks**:
-   - The app starts with 3 sample tasks:
-     - "Learn Jetpack Compose"
-     - "Build a todo app"
-     - "Practice Kotlin"
-
-## 🎨 Customization
-
-### Adding New Features
-- **Persistence**: Add Room database for data persistence
-- **Categories**: Implement task categorization
-- **Due Dates**: Add date/time picker for task deadlines
-- **Search**: Add search functionality for tasks
-- **Sorting**: Implement sorting by date, priority, or completion status
-
-### Styling
-- Modify `ui/theme/Color.kt` for custom color schemes
-- Update `ui/theme/Type.kt` for custom typography
-- Adjust `ui/theme/Theme.kt` for overall theme configuration
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Build Errors**:
-   - Ensure you're using the correct Android Studio version
-   - Clean and rebuild the project (`Build > Clean Project`)
-
-2. **Animation Not Working**:
-   - Check that the `animateItem()` modifier is properly implemented
-   - Verify Compose animation dependencies are included
-
-3. **App Crashes**:
-   - Check device/emulator meets minimum API level (24)
-   - Review logcat for specific error messages
-
-## 📝 Development Notes
-
-- The app uses `mutableStateListOf` for state management
-- LazyColumn with `key = { it.id }` ensures proper animation behavior
-- Coroutines are used for delayed task removal
-- Material 3 components provide consistent theming
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## 🙏 Acknowledgments
-
-- Jetpack Compose team for the amazing UI framework
-- Material Design team for the design system
-- Android team for the development tools and platform
+```kotlin
+dependencies {
+    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
+    implementation("androidx.activity:activity-compose:1.8.0")
+    implementation(platform("androidx.compose:compose-bom:2024.09.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.material3:material3")
+}
+```
 
 ---
 
-**QuickUI Practice** - A simple yet elegant todo list app demonstrating modern Android development with Jetpack Compose.
+**Quick Reference for Lyft Interview** - Copy-paste ready code snippets for Jetpack Compose development.
